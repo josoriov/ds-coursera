@@ -18,3 +18,13 @@ column_mean <- function(x, removeNA=TRUE) {
   }
   means # Last expression to return
 }
+
+# Lexical scoping
+make.power <- function(n) {
+  pow <- function(x) {
+    x^n
+  }
+  pow
+}
+cube <- make.power(3)
+square <- make.power(2)

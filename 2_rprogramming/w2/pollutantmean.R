@@ -9,5 +9,5 @@ pollutantmean <- function(directory, pollutant, id=1:332) {
     mean_vector <- append(mean_vector, mean_temp)
   }
   total_mean <- mean(mean_vector, na.rm=TRUE)
-  return(mean_vector)
+  return(total_mean)
 }

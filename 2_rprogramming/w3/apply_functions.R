@@ -15,3 +15,16 @@ apply(a, c(1,2), mean) # Mean of first two dimensions
 
 # mapply
 mapply(rep, 1:4, 4:1)
+
+
+# library(datasets)
+# data(iris)
+# dat <- iris[iris$Species == 'virginica',]
+# 
+# a<-apply(iris[,1:4], 2, mean)
+
+# library(datasets)
+# data(mtcars)
+
+# a<-sapply(split(mtcars$hp, mtcars$cyl), mean)
+# a<-with(mtcars, tapply(mpg, cyl, mean))

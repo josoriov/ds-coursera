@@ -18,7 +18,7 @@ a <- names(dat)
 # dat$X.4 <- gsub("\\,", "", dat$X.4)
 # dat <- dat[1:215,]
 # countrynames <- dat[,"X"]
-# RTA ^United
+# RTA grep("^United", countryNames), 3
 
 
 # 4
@@ -31,9 +31,11 @@ a <- names(dat)
 # a <- merge(gdp_data, education_data, by.x="X", by.y="CountryCode")
 # fiscal <-  a[a$Special.Notes != "",]
 # fiscal <- a[, "Special.Notes"]
+# RTA = 13
 
 # 5
 # library(quantmod)
 # amzn <- getSymbols("AMZN",auto.assign=FALSE)
 # sampleTimes <- index(amzn)
 # year <- substring(sampleTimes,1,4)
+# RTA 250, 47

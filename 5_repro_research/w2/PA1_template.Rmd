@@ -1,0 +1,117 @@
+---
+title: Markdown first project
+author: Juan Osorio
+output: html_document
+---
+
+### 1. Code for reading in the dataset and/or processing the data
+
+The data is stored in the *activity.csv* file inside the data folder. This file was imported to R using the read.CSV function and stored in the *dat* variable. After that, the *dat* data frame was processed when required into another data frame which were to be used to answer an specific question.
+
+```{r importing-data}
+dat <- read.csv("data/activity.csv")
+dat$date <- as.Date(dat$date, format="%Y-%m-%d")
+```
+
+### 2. Histogram of the total number of steps taken each day.
+
+First a new data frame was created from *dat*, this takes the total number of steps by day. After that, it was plotted using the base R plotting system.
+
+```{r hist-setp-number-1, fig.width=5, fig.height=5}
+step_number <- aggregate(dat$steps, by=list(date=dat$date), FUN=sum, na.rm=T)
+names(step_number)[2] <- "steps"
+hist(step_number$steps, main="Hisogram of steeps number", breaks=10,
+     col="#2F9CB1", xlab="Number of steps")
+```
+
+### 3. Mean and median number of steps taken each day.
+
+This values are calculated just taken the *step_number* data frame and using the mean and median functions.
+
+```{r mean-median}
+step_number.mean <- round(mean(step_number$steps), digits=2)
+step_number.median <- median(step_number$steps)
+
+```
+
+The mean value is: `r step_number.mean`, and the median value is: `r step_number.median`.
+
+
+### 4. Time series plot of the average number of steps taken.
+
+We create a new version of the *step_number* data frame, but this time the aggregation is done by using the mean function, instead of the sum function. The plot is made using the R base plotting system.
+
+```{r avg-step-number, fig.height=5, fig.width=5}
+step_number <- aggregate(dat$steps, by=list(date=dat$date), FUN=mean, na.rm=T)
+names(step_number)[2] <- "steps"
+
+plot(step_number$date, step_number$steps, col=rgb(47/255, 156/255, 177/255, 0.8),
+     xlab="Date", ylab="Average number of steps", pch = 16)
+```
+
+
+### 5. The 5-minute interval that, on average, contains the maximum number of steps.
+
+A new data frame called *interval_stat* is created. This would contain the average number of steps by each interval. After that the which function is used to find the index where the highest number of steps is, said index is used to return the interval to which it belongs.
+
+```{r max-step-interval}
+interval_stat <- aggregate(dat$steps, by=list(interval=dat$interval), FUN=mean, na.rm=T)
+names(interval_stat)[2] <- "steps"
+ind <- which.max(interval_stat$steps)
+max_interval <- interval_stat$interval[ind]
+```
+
+The highest interval is: `r max_interval`
+
+
+### 6. Code to describe and show a strategy for imputing missing data.
+
+A vector called miss is created, this vector contains the index (row index) in which the number of steps is missing. Those NA values will be replaced by mean value of steps for the appropriate interval. A for loop is used over all of the vector of missing-values indexes.
+
+```{r imputer}
+miss <- which(is.na(dat$steps))
+
+for (i in miss) {
+    a <- dat$interval[i]
+    dat$steps[i] = round(interval_stat[interval_stat$interval == a,][[2]],
+                         digits=0)
+}
+rm(a, i, miss)
+```
+
+
+### 7. Histogram of the total number of steps taken each day after missing values are imputed
+
+The *step_number* is, once again, created because the missing values where imputed into the original *dat* data frame. 
+
+```{r hist-setp-number-2, fig.width=5, fig.height=5}
+step_number <- aggregate(dat$steps, by=list(date=dat$date), FUN=sum, na.rm=T)
+names(step_number)[2] <- "steps"
+
+hist(step_number$steps, main="Hisogram of steeps number (No NA's)", breaks=10,
+     col="#2F9CB1", xlab="Number of steps")
+```
+
+
+### 8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends.
+
+The lattice library was imported to make this graph. First a processing is made to the *dat* data frame to insert a new factor variable that tells if the date is a weekday or a weekend. After that, the data frame *wDay_interval.data* was created, this represents the average number of steps by interval and wDay (the above-mentioned factor variable). It is also worth noting that, since my OS language is Spanish, I have to manually change the R settings to return weekday names in english.
+
+```{r panel-wday-steps, fig.width=5, fig.height=5}
+library(lattice)
+Sys.setlocale("LC_TIME", "English")
+weekdays_val <- c('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')
+dat$wDay <- factor((weekdays(dat$date) %in% weekdays_val),
+                   levels=c(FALSE, TRUE), labels=c('weekend', 'weekday'))
+
+wDay_interval.data <- aggregate(dat$steps, by=list(wDay=dat$wDay, interval=dat$interval),
+                         FUN=mean, na.rm=T)
+names(wDay_interval.data)[3] <- "steps"
+
+plt <- xyplot(steps~interval|wDay, data=wDay_interval.data, main="Density Plot by type of day",
+              xlab="Interval", ylab="Steps", layout=c(1, 2), type="l")
+
+print(plt)
+```
+
+

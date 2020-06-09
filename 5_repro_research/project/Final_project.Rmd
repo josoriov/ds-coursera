@@ -1,0 +1,168 @@
+---
+title: Consequences of natural events in the US
+author: Juan Osorio
+output: html_document
+---
+
+### Synopsis
+
+This document is the result of a exploratory analysis over the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database, and the purpose of it was to find which types of events (natural disaster) have been the most harmful to human healt and which of them have had the highest economic repercussions. This was done by first loading the data and using only the columns that the author think are necessary for the analysis. The cost to human health metric was calculated by giving a value to each according to the number of fatalities and injuries it has caused. The economic repercussions were calculated by adding the value of the damages to both property and crops. In the two questions, a plot and a table were made to visualize the results of the top 10 events.
+
+### Data Processing
+
+The data is stored in the *storm_data.csv* file inside the data folder. This file was imported to R using the fread function and stored in the *dat* variable. This function is used because it is faster compared to read.CSV and a larga data set is being used. Only seven columns are going to be used for the analysis, they are all converted to lowercase in the preprocessing. These are:
+
+* evtype: type of event registered.
+
+* fatalities: number of fatalities.
+* injuries: number of  injuries.
+* propdmg: value of property damage.
+* propdmgexp: exponent of the property damage.
+* cropdmg: value of crop dmg.
+* cropdmgexp: exponent of the crop damage.
+
+It is also worth noting that all the used libraries are imported right away.
+
+```{r loading-packages}
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(viridis)
+library(pander)
+```
+
+
+```{r processing-1, cache=TRUE}
+cols.keep <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP",
+               "CROPDMG", "CROPDMGEXP") 
+dat <- fread("data/storm_data.csv", select=cols.keep)
+names(dat) <- c("evtype", "fatalities", "injuries", "propdmg", "propdmgexp",
+                "cropdmg", "cropdmgexp")
+```
+
+
+### Human health cost
+
+The human health cost was calculated by creating a new quantity called *health.score*, this metric depends on the number on injuries and the number of fatalities for an event. The first thing to do was to calculate the ratio of injuries to fatalities as an integer.
+
+```{r health-1}
+injury_fatal.ratio <- floor(sum(dat$injuries)/sum(dat$fatalities))
+
+```
+
+This quantity indicates how many more injuries are compared to the number of deaths in total. In the data set of our interest said ratio is: `r injury_fatal.ratio`.
+
+After that, health score will be calculated following the formula:
+
+health.score = (f*r) + i
+
+Where $f$ stands for fatalities, $i$ is the injuries, and $r$ is the aforementioned ratio.  
+
+
+A new dataframe called *health_cost* is created using the dplyr library and the aggregate method from base R. First the *dat* original table is taken and then only the variables evtype, fatalities and injuries are extracted. Then the health.score is calculated using the formula. Finally this new dataframe is ordered according to health.score on a descending manner, and re-scaled the whole values to thousands.
+
+```{r health-2, cache=TRUE}
+health_cost <- dat %>% select(evtype, fatalities, injuries) %>%
+    mutate(health.score = (fatalities*injury_fatal.ratio) + injuries)
+health_cost <- aggregate(list(health_cost$fatalities, health_cost$injuries,
+                              health_cost$health.score),
+                         FUN=sum, na.rm=T, by=list(evtype=health_cost$evtype))
+names(health_cost)[2:4] <- c("fatalities", "injuries", "health.score")
+health_cost <- health_cost[order(-health_cost$health.score),]
+row.names(health_cost) <- NULL
+
+# Re scale to thousands
+health_cost[,2:4] <- lapply(health_cost[,2:4], function(x) {
+    x/1000.0
+})
+```
+
+To plot the data, the first ten rows are extracted and saved into a temporary symbol. After that, the ggplot2 package is used to make the desirable graphic.
+
+```{r healt-table}
+a <- head(health_cost, 10)
+pander(a, type="grid")
+```
+
+```{r healt-plot, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="Ten most harmful events to human health"}
+plt <- ggplot(data=a, aes(x=injuries, y=fatalities, col=health.score)) +
+    geom_point(size=3) + scale_color_gradientn(colours=viridis(10)) +
+    geom_text(aes(label=evtype), size=3, vjust="inward", hjust="inward") +
+    theme_grey(base_size = 14) + xlab("Injuries (thousands") + ylab("Fatalities (thousands)")
+
+print(plt)
+
+```
+
+### Economic consecuences
+
+The conomic consequences are calculated by the total sum of the property damage and the crop damage. To obtain this number the damage values should be sclaed accordingly to the associated exponent. The code shown below performs this task and reassings the new values in the data table, then deletes both the exponents columns since they are no longer needed.
+
+```{r economic-1, cache=TRUE}
+# Function to replace the exponents
+replace_exp <- function(x) {
+    if (x=="K" | x=="k") {
+        return(1000)
+    }
+    else if (x=="M" | x=="m") {
+        return(1000000)
+    }
+    else {
+        return(1)
+    }
+}
+# Only data with kilo or mega exp will be processed
+# The other ones could not be understood an so we will asume them as 1
+dat$propdmgexp <- sapply(dat$propdmgexp, replace_exp)
+dat$cropdmgexp <- sapply(dat$cropdmgexp, replace_exp)
+
+# Multiplying the value for the correspondent exponent and dropping exp columns
+dat$propdmg <- dat$propdmg * dat$propdmgexp
+dat$cropdmg <- dat$cropdmg * dat$cropdmgexp
+dat[,c("propdmgexp", "cropdmgexp"):=NULL]
+
+```
+
+The next step is to create a new dataframe called *monetary*, this object is used to store the damage values. Said values are obtained using a dplyr pipeline to extract the needed columns and calculate the new total value -which is the sum of property plus crop damage-. Then the base R aggegate function is used to obtain a total value per event. Finally all those values are re-scaled to millions.
+
+```{r economic-2, cache=TRUE}
+# Calculating the dmg values
+monetary <- dat %>% select(evtype, propdmg, cropdmg) %>%
+    mutate(total = propdmg + cropdmg)
+monetary <- aggregate(list(monetary$propdmg, monetary$cropdmg,
+                           monetary$total),
+                         FUN=sum, na.rm=T, by=list(evtype=monetary$evtype))
+names(monetary)[2:4] <- c("propdmg", "cropdmg", "total")
+monetary <- monetary[order(-monetary$total),]
+row.names(monetary) <- NULL
+# Re scale to millions
+monetary[,2:4] <- lapply(monetary[,2:4], function(x) {
+    x/1000000.0
+})
+```
+
+To plot the data, the first ten rows are extracted and saved into a temporary symbol. After that, the ggplot2 package is used to make the desirable graphic.
+
+```{r economic-table}
+b <- head(monetary, 10)
+pander(b, type="grid")
+```
+
+```{r economic-plot, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="Economic impact of the ten most devastating events"}
+plt <- ggplot(data=b, aes(x=propdmg, y=cropdmg, col=total)) +
+    geom_point(size=3) + scale_color_gradientn(colours=viridis(10)) +
+    geom_text(aes(label=evtype), size=3, vjust="inward", hjust="inward") +
+    theme_grey(base_size = 14) + xlab("Property damage (millions)") +
+    ylab("Crop Damage (millions)")
+
+
+print(plt)
+```
+
+### Results
+
+It is found that, using our metrics, the tornadoes are by far the most harmful events to humna health in the United States, having a healt.score of `r a$health.score[[1]]` which is 6 times higher than the second event (Excessive heat). This could be seen in the plot, where the point representing the event is an outlier. The total number of fatalities by the event are: `r a$fatalities[[1]]`, and the number of injuries are: `r a$injuries[[1]]`.
+
+In the economic metric, tornadoes also first place with a total damage value of \$`r b$total[[1]]` millions. This almost doubles the second event in floods. The property damage caused by tornadoes is: `r b$propdmg[[1]]`, and the crop damage caused is: `r b$cropdmg[[1]]`.
+
+In conclusion, according to the U.S. National Oceanic and Atmospheric Administration's the tornadoes are the most harmful events for human lives and also the one event that caused the most economic losses.

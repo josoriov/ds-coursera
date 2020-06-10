@@ -1,0 +1,195 @@
+---
+title: "Inferential statistics course project"
+author: "Juan Osorio"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+### Synopsis
+
+This document is presented as the final project for the course Statistical Inference. In the first part of the document, several sets of exponentially distributed data will be simulated, then see how the distribution of means will approximate according to the Central Limit Theorem. The second part consists of the statistical analysis for the Tooth Growth dataset included in the package *datasets*.
+
+```{r packages}
+# Loading the required libraries from the start
+library(ggplot2)
+library(datasets)
+library(knitr)
+```
+
+
+## 1. Central Limit Theorem
+
+### Generating the data
+
+First, a set of n exponentials are going to be generated using the rexp function, said numbers will have a mean $\lambda$. This is going to be repeated a fixed number of times.
+
+```{r constants-simulation}
+# setting the seed for reproducibility
+set.seed(12893)
+
+# Defining constants
+n <- 40
+lambda <- 0.3
+n_sims <- 1500
+
+# Running the simulations
+exp_distributions <- matrix(data=rexp(n*n_sims, lambda), nrow=n_sims)
+exp_distributions_means <- data.frame(means=apply(exp_distributions, 1, mean))
+```
+
+After simulating `r n_sims` distributions, the means are calculated an then plotted into a histogram.
+
+```{r hist-simulations, fig.align='center', fig.width=4, fig.height=3, cache=TRUE, fig.cap="Histogram of means", echo=FALSE}
+p0 <- ggplot(exp_distributions_means, aes(x=means)) + xlab("Means") + ylab("Density") +
+    geom_histogram(aes(y=..density..), fill="#69b3a2", color="#ACB8C3", alpha=0.6) +
+    theme_gray()
+
+p0
+```
+
+### Sample vs Theoretical values
+
+The expected mean ($\mu$) of an exponential distribution is defined by the formula $\mu = 1/\lambda$. The expected standard deviation is calculated as: $\sigma = \frac{1}{\lambda\sqrt{n}}$. As for the variance ($\sigma^{2}$) its just $\sigma^{2}$. On the other hand, the simulated mean, variance and standard deviation are calculated using the base R functions.
+
+```{r stat-sim-teo}
+# Simulated mean, variance and standard deviation
+mean_sim <- mean(exp_distributions_means$means)
+sd_sim <- sd(exp_distributions_means$means)
+var_sim <- var(exp_distributions_means$means)
+
+# Theoretical mean, variance and standar deviation
+mean_teo <- 1/lambda
+sd_teo <- 1/(lambda*sqrt(n))
+var_teo <- sd_teo^2
+```
+
+```{r summary-table, echo=FALSE}
+my_table <- data.frame(Simulated=c(mean_sim, sd_sim, var_sim),
+                       Theoretical=c(mean_teo, sd_teo, var_teo))
+row.names(my_table) <- c("Mean", "Standard Dev.", "Variance")
+
+kable(my_table, align="c")
+```
+
+According to the results, both the theoretical and simulated measures are pretty close. This could be seen better using a plot in which the histogram, a trend line and a normal standard line -using the calculated values- are plotted.
+
+```{r plot-all-simulations, fig.align='center', fig.width=4, fig.height=3, cache=TRUE, fig.cap="Comparing the data to a normal distribution", echo=FALSE}
+p1 <- ggplot(exp_distributions_means, aes(x=means)) + xlab("Means") + ylab("Density") +
+    geom_histogram(aes(y=..density..), fill="#69b3a2", color="#ACB8C3", alpha=0.6) +
+    theme_gray() +
+    stat_function(fun = dnorm, args = list(mean = mean_sim, sd = sd_sim),
+                  color="#564E58", size=1.25) +
+    geom_density(aes(y=..density..), color="#F19A3E", size=1.25)
+
+p1
+```
+
+In the figure it is clear that the normal distribution approximates really well to the distribution trend line.
+
+
+## 2. Inferential Data Analysis
+
+The first step is to load the data and present some summary statistics.
+
+```{r importing-data}
+# Second part
+data("ToothGrowth")
+
+# Visualizing the data structure
+head(ToothGrowth, 5)
+```
+
+```{r dims}
+# Dims of data and types
+str(ToothGrowth)
+```
+
+```{r data-summary}
+# Summary of the data
+summary(ToothGrowth)
+```
+
+The data has 60 observations or 3 variables.
+* len: Tooth length, is a numeric type.
+* supp: Supplement given to the animal (VC or OJ), is a character type.
+* dose: Dose of supplement in milligrams/day, is a numeric type.
+
+
+```{r boxplot-growth, fig.align='center', fig.width=4, fig.height=3, cache=TRUE, fig.cap="Visualizing the tooth growth data", echo=FALSE}
+# Boxplot to visualize data
+p2 <- ggplot(data=ToothGrowth, aes(x=supp, y=len)) + facet_grid(.~dose) +
+    geom_point() + geom_boxplot(aes(fill=supp)) + ylab("Tooth length") +
+    xlab("Supplement") + ggtitle("Tooth growth by dosage (mg) and supplement")
+
+p2
+```
+
+
+According to the plot three main observations are drawn, the first one is that the $2.0mg$ dosage is the most effective when it comes to tooth growth. The second one is that in general the supplment OJ has better effectiveness than VC. The final observation is that in $2.0mg$ dosage both supplements have pretty much the same effect.
+
+### Hypothesis testing
+
+Before proceding with the hypothesis testing. Some assumptions have to be made, these are:
+
+* The variables must be independent and identically distributed (i.i.d.).
+* Variances of tooth growth are different when using different supplement and dosage.
+* Tooth growth follows a normal distribution.
+
+The data set is then splitted into groups that will help test our hypothesis.
+
+```{r split-growth}
+# Splittin data set by dosage
+dose_05 <- ToothGrowth$len[ToothGrowth$dose == 0.5]
+dose_10 <- ToothGrowth$len[ToothGrowth$dose == 1.0]
+dose_20 <- ToothGrowth$len[ToothGrowth$dose == 2.0]
+
+# Splitting data by supplement
+supp_oj <- ToothGrowth$len[ToothGrowth$supp == "OJ"]
+supp_vc <- ToothGrowth$len[ToothGrowth$supp == "VC"]
+
+# Splitting data by supplement and dosage = 2.0
+supp_oj_20 <- ToothGrowth$len[ToothGrowth$supp == "OJ" & ToothGrowth$dose == 2.0]
+supp_vc_20 <- ToothGrowth$len[ToothGrowth$supp == "VC" & ToothGrowth$dose == 2.0]
+```
+
+1. The $2.0mg$ dosage is the most effective.
+
+A one tail t-test is performed using the t.test function of R.
+
+```{r}
+# Testing that the 2mg dosage is more effective than both others
+# Testing that dose 1.0 is greater than dose 0.5
+t.test(dose_10, dose_05, alternative = "greater", paired = FALSE,
+       var.equal = FALSE, conf.level = 0.95)
+```
+
+The p-value in this test is much smaller than our defined $\alpha = 0.05$, and thus we can reject the null hypothesis. That means there is an almost non-existent probability of finding a higher tooth growth value for the $0.5mg$ dosage compared to the $1.0mg$ dosage. 
+
+``` {r}
+# Testing that dose 2.0 is greater than dose 1.0
+t.test(dose_20, dose_10, alternative = "greater", paired = FALSE,
+       var.equal = FALSE, conf.level = 0.95)
+```
+Again, p-value in this test is much smaller than our defined $\alpha = 0.05$, and thus we can reject the null hypothesis. That means there is an almost non-existent probability of finding a higher tooth growth value for the $1.0mg$ dosage compared to the $2.0mg$ dosage. 
+
+
+2. Overall the OJ supplement is most effective when compared to the VC.
+
+```{r}
+# Testing that in general OJ has grater effects than vc
+t.test(supp_oj, supp_vc, alternative = "greater", paired = FALSE,
+       var.equal = FALSE, conf.level = 0.95)
+```
+
+The p-value obtained indicates a 3% probability of finding a value in which the OJ supplement is less effective than the VC. Given that our tolerance is set to be 5%, the null hypothesis can be sucessfully rejected.
+
+3. For the $2.0mg$ dosage both supplements have similar effects.
+
+```{r}
+# Testing that oj 2.0 has similar effects than vc 2.0
+t.test(supp_oj_20, supp_vc_20, alternative = "two.sided", paired = FALSE,
+       var.equal = FALSE, conf.level = 0.95)
+```
+
+A p-value of $0.9639$ is obtained, this indicates that the null hypothesis cannot be rejected. There is not enough evidence to show that the supplements have differents effects at such dosage.

@@ -1,0 +1,158 @@
+---
+title: "Regression Models Project - Relationship Between Manual Transmission and MPG"
+author: "Juan Osorio"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Summary
+
+In this document we are analyzing the data from various cars, the special itnerest is to explore the relationship between the MPG (miles per gallon) and the type of transmission (Manual or Automatic). Two questions are expected to be addressed:
+1. Is an automatic or manual transmission better for MPG
+2. Quantify the MPG difference between automatic and manual transmissions
+
+The steps taken are:
+
+*Process the raw data
+*Explore the data using plots to visualize relationships
+*Model selection and model examination to see which model fit best to our data and help us better answer our questions
+*Conclusions to answer the questions
+
+## Processing
+
+```{r packages, cache=TRUE}
+# Loading the required libraries from the start
+library(datasets)
+library(ggplot2)
+library(GGally)
+library(knitr)
+```
+
+
+### Getting and Manipulating the Data
+
+For this exercise, the mtcars dataset will be used, this is a well known dataset that comes with the base R. The data is imported, then the non-continuous varaiables are converted to factor variables. Before this, we will get the correlation  table between variables.
+
+```{r constants-simulation, cache=TRUE}
+# Extracting the data
+data(mtcars)
+
+# Getting all the correlations
+corr_list <- cor(mtcars$mpg, mtcars)
+
+# Converting the non-continuous variables to factor
+# Converting am
+mtcars$am <- as.factor(mtcars$am)
+levels(mtcars$am) <- c("Automatic", "Manual")
+# Converting vs
+mtcars$vs <- as.factor(mtcars$vs)
+levels(mtcars$vs) <- c("V-shaped", "Straight")
+# Converting cyl
+mtcars$cyl <- as.factor(mtcars$cyl)
+# Converting gear
+mtcars$gear <- as.factor(mtcars$gear)
+```
+
+### Exploratory Data Analysis
+
+Showing the dimensions and types of data in the dataset.
+
+```{r data-info, cache=TRUE}
+# Showing info of the data
+str(mtcars)
+```
+
+Visualizing the first 5 rows of the dataset.
+
+```{r data-head, cache=TRUE}
+# Visualizing the first rows of data
+kable(head(mtcars, 5))
+```
+
+Plotting the relationship between tha main parameters for this exercise.
+
+
+```{r plot-2-vars, fig.align='center', fig.width=4, fig.height=3, cache=TRUE, fig.cap="Boxplot of the two mains variables", cache=TRUE}
+# Plotting the relationship between the variables of interest
+p1 <- ggplot(mtcars, aes(x=am, y=mpg))
+p1 <- p1 + geom_boxplot(aes(fill = am))
+p1
+```
+
+The previous plot shows that a relationship between the transmission type and MPG exists, and seemingly, manual transmission has a higher MPG than its automatic counterpart. However, it is a good practice to look at the correlations of the variables before fitting a model.
+
+```{r corr-list, cache=TRUE}
+# Ordering the correlations and getting the highest-than-am ones
+corr_list <- corr_list[,order(-abs(corr_list[1,]))]
+corr_list
+```
+
+```{r corr-var}
+ind <- which(names(corr_list) == "am")
+corr_var <- names(corr_list)[1:ind]
+corr_var
+```
+
+All the variables with a higher correlation than am are extracted, and then all their relationships are plotter using ggpairs.
+
+```{r plot-all-vars, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="Pair plot of all the highly correlated quantities", cache=TRUE}
+# Figure 2
+p2 <- ggpairs(data=mtcars[, corr_var],  mapping = ggplot2::aes(color = am))
+p2
+```
+
+## Model Selection
+
+The first model to fit is the one only considering mpg as outcome and am as the only predictor.
+
+```{r fit-1, cache=TRUE}
+fit1 <- lm(mpg ~ am, mtcars)
+summary(fit1)
+```
+
+This model gives a really small p-values which indicates that it is a good fit to our data. However, this model have a small R-squared  value in thus cannot explain much of the variance.
+
+Now a model including all the variable will be taken into account.
+
+```{r fit-all, cache=TRUE}
+fit_all <- lm(mpg ~ ., data=mtcars)
+summary(fit_all)
+```
+
+Even though this model have a high R-squared and explain much of the variance, its p-value are really high, meaning low significance.
+
+To find the best fit to model our data, the step function is going to be used parting from the fit_all model.
+
+```{r fit-best, cache=TRUE}
+fit_best <- step(fit_all, direction="both",trace=FALSE)
+summary(fit_best)
+```
+
+In this model we have a R-squared of `r round(summary(fit_best)$r.squared, 4)` meaning a high variance explanation and also the p-values are low enough to mean that this is a significant model. The variable taken into account are wt, qsec and am.
+
+To really determine if this model its good enough, the residuals will be plotted.
+
+```{r plot-residuals, cache=TRUE}
+# Plotting residuals
+par(mfrow=c(2,2))
+p3 <- plot(fit_best)
+```
+
+## Conclusion
+
+The answer to the first question is that the manual transmission has a higher MPG than the automatic one. This can be seen in all three models fitted as a positive coefficient for the am-manual.
+
+The second question is better answered when looking at the best fitted model (fit_best), with the formula $mpg \sim wt + qsec + am$. Said model indicates that cars with manual transmission spend `r round(summary(fit_best)$coef[4,1], 3)` more miles per gallon than automatic cars. The p-value is less than our tolerance of 0.05, which indicates a good significance.
+
+When looking at the residuals vs fitted value plot we can see that there is no abnormal variance in the sense that it all appears to be randomly distributed, however, it is still a large residual error.
+
+Even though the model was a good fit to our data, and the relationship between transmission and mpg seems feasible for the year the data was taken, I cannot establish and strong conclusion due to the low number of observations and and how scarcely separated the data is -the overlap in the fitting parameters is almost non-existant-.
+
+
+
+
+
+
+
+

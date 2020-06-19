@@ -1,0 +1,320 @@
+---
+title: "Activity Predictions Using the Weight Lifting Exercises Dataset "
+author: "Juan Osorio"
+output:
+  html_document: default
+---
+
+## Summary
+Based on a dataset provide by [HAR](http://groupware.les.inf.puc-rio.br/har) we will try to predict the activity that was performed using original data from 159 covariates and 1 predictor.
+
+The steps taken to address the problem are:
+1. Process the data to make it easy to analyze
+2. Perform an exploratory data analysis on the data to find relationships between covariates
+3. Selection the models that are going to be used
+4. Examine how good the models perform on the data
+5. Conclussion
+6. Predicting the classe values for the validation dataset
+
+
+
+## 1. Processing
+The required libraries are loaded
+
+```{r packages, cache=TRUE, results='hide'}
+# Loading the required libraries from the start
+library(dplyr);library(caret); library(corrplot); library(Rmisc); library(pander)
+```
+
+Set the seed for reproducibility and extracting the data.
+
+```{r loading-data}
+# Getting the data
+set.seed(124879)
+training.raw <- read.csv("data/pml-training.csv")
+validation <- read.csv("data/pml-testing.csv")
+```
+
+After that the columns with a los of missing values are removed, this is done, because there is a lot of covariate from which we can fit, and so the ones with a lot of its data missing could be discarded. Then, all the columns with timestamp on them will be removed, the justification to that is that this is a mere time tracking register and not related to the classe at all. The columns *X*, *user_name* and *new_window* are removed since it is mostly id-related and not relevant covariate data.
+
+```{r col-removal, cache=TRUE}
+# Remove the columns with a lot of missing values
+naRemove <- which(colSums(is.na(training.raw) | training.raw == "")/
+                      nrow(training.raw) > 0.15)
+training.raw <- training.raw[, -naRemove]
+validation <- validation[, -naRemove]
+
+# Removing timestamp since that is not an useful covariate
+timeRemove <- grep("timestamp", names(training.raw))
+training.raw <- training.raw[,-timeRemove]
+validation <- validation[,-timeRemove]
+classeLevels <- unique(training.raw$classe)
+training.raw$classe <- factor(training.raw$classe, labels=classeLevels)
+
+# Removing X, user_name, new_window columns
+training.raw <- select(training.raw, -c("X", "user_name", "new_window"))
+validation <- select(validation, -c("X", "user_name", "new_window"))
+```
+
+In case there are still rows with little missing values, an imputer will be needed, so we check that.
+
+```{r imputer-check}
+# Checking to see if an imputer is needed
+sum(colSums(is.na(training.raw)))
+```
+
+The answer zero means that there aren't any missing values in our data.
+
+
+## 2. Exploratory Data Analysis
+
+
+First, the data is splitted into three datasets: training, testing and validation.
+
+```{r split-data, cache=TRUE}
+# Splitting the data
+inTrain <- createDataPartition(y=training.raw$classe, p=0.7, list=FALSE)
+training <- training.raw[inTrain,]
+testing <- training.raw[-inTrain,]
+outputIndex <- which(names(training) == "classe")
+```
+
+After that, correlations are searched among the covariates and then we extract the fourth most correlated variables. New datasets are created called training.4, testing.4, validation.4. They correspond to dataframes corresponding of just the aforementioned highly correlated predictors.
+
+```{r correlations, cache=TRUE}
+# Search correlations
+correlations <- cor(training[,-outputIndex], as.numeric(training$classe))
+# 4 Highest correlated variables to classe
+highCorr <- subset(as.data.frame(correlations),abs(V1)>0.26)
+corrVariables <- row.names(highCorr)
+training.4 <- select(training, c("classe", corrVariables))
+outputIndex.4 <- which(names(training.4) == "classe")
+testing.4 <- select(testing, c("classe", corrVariables))
+validation.4 <- select(validation, c("problem_id", corrVariables))
+pander(highCorr, caption="Highest correlated variables")
+```
+
+A plot of this covariates and the outcome classe is made using Hmisc multiplot function.
+
+```{r plot-4-covar, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="Boxplot four covariates and classe", cache=TRUE}
+# Plotting the relationship between the variables of interest
+p1 <- ggplot(training.4, aes(classe,pitch_forearm)) +
+    geom_boxplot(aes(fill=classe))
+
+p2 <- ggplot(training.4, aes(classe,magnet_arm_y)) +
+    geom_boxplot(aes(fill=classe))
+
+p3 <- ggplot(training.4, aes(classe,magnet_arm_x)) +
+    geom_boxplot(aes(fill=classe))
+
+p4 <- ggplot(training.4, aes(classe,magnet_belt_y)) +
+    geom_boxplot(aes(fill=classe))
+
+multiplot(p1,p2,p3,p4, cols=2)
+```
+
+Plotting the complete correlation matrix.
+
+```{r corr-matrix-plot, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="Plot of the correlation matrix", cache=TRUE}
+# Plotting the corr matrix
+correlations <- cor(training[, -outputIndex])
+corrplot(correlations, method="color", type="lower", order="hclust",
+         tl.col="black", tl.srt = 45, diag = FALSE, tl.cex=0.60,
+         col=colorRampPalette(c("#80CED7","#63C7B2","#8E6C88","#263D42"))(100))
+```
+
+## 3. Model Selection
+
+Given the high performance in terms of accuracy that the random forest and general boosting machine algorithms have, those are going to be the two base models. Two setups for each of the algorithm are going to be fitted, the first one taking into account only the fourth highly correlated predictors and the other predicting with all the covariates; this gives a total of four models. Also, for completeness, four new models are going to be created after preprocessing the data using principal component analysis to explain 80% of the variance. This add to a total of eight model to compare.
+
+*modRF4: random forest of the four highly correlated components.
+*modRFAll: random forest using all the possible predictors.
+*modGBM4: general boosting machine of the four highly correlated components.
+*modGBMAll: general boosting machine using all the possible predictors.
+*modRF4.pca: random forest of the post-processing pca data of the four highly correlated components.
+*modRFAll.pca: random forest of the post-processing pca data of all the possible predictors.
+*modGBM4.pca: general boosting machine of the post-processing pca data of the four highly correlated components.
+*modGBMAll.pca: general boosting machine of the post-processing pca data of all the possible predictors.
+
+
+## 4. Model fitting
+
+The models are fitted using the caret package and then its accuracy evaluated in the test dataset.The number of trees in the random forest is set to 100, this gives us good accuracy, also the errors are not reduced by much after 30 trees -this will be shown further down the document. In order to no train the models in every single run, those are going to be saved into an RDS file and the loaded when neeeded.
+
+```{r train-non-pca-models, eval=FALSE}
+control <- trainControl(verboseIter = TRUE)
+# Model using 4 best correlations
+modRF4 <- train(classe ~ ., method="rf", data=training.4, trControl=control,
+                ntree=100, verbose=T, keep.forest=T)
+modGBM4 <- train(classe ~ ., method="gbm", data=training.4, verbose=TRUE)
+# Model with all covariates
+modRFAll <- train(classe ~ .,method="rf", data=training, trControl=control,
+                  ntree=100, verbose=T, keep.forest=T)
+modGBMAll <- train(classe ~ ., method="gbm", data=training, verbose=TRUE)
+```
+
+
+This four models are then evaluated.
+
+```{r eval-non-pca-models, cache=TRUE}
+# Evaluationg non-pca models
+modRF4 <- readRDS("models/modRF4.rds")
+modGBM4 <- readRDS("models/modGBM4.rds")
+predRF4 <- predict(modRF4, testing)
+confRF4 <- confusionMatrix(predRF4, testing.4$classe)
+predGBM4 <- predict(modGBM4, testing)
+confGBM4 <- confusionMatrix(predGBM4, testing.4$classe)
+
+modRFAll <- readRDS("models/modRFAll.rds")
+modGBMAll <- readRDS("models/modGBMAll.rds")
+predRFAll <- predict(modRFAll, testing)
+confRFAll <- confusionMatrix(predRFAll, testing$classe)
+predGBMAll <- predict(modGBMAll, testing)
+confGBMAll <- confusionMatrix(predGBMAll, testing$classe)
+
+```
+
+The next step is to do the pca preprocess on the training, test and validation dataframes.
+
+```{r pca-processing, cache=TRUE}
+# Model using pca
+pcaPreProcess <- preProcess(training[, -outputIndex], method = "pca",
+                            thresh = 0.80)
+
+pcaPreProcess.4 <- preProcess(training.4[, -outputIndex.4], method = "pca",
+                              thresh = 0.80)
+
+# PCA 4
+training.4.pca <- predict(pcaPreProcess.4, training.4[, -outputIndex.4])
+training.4.pca<- cbind(classe=training.4$classe, training.4.pca)
+testing.4.pca <- predict(pcaPreProcess.4, testing.4[, -outputIndex.4])
+testing.4.pca <- cbind(classe=testing$classe, testing.4.pca)
+validation.4.pca <- predict(pcaPreProcess.4, validation.4[, -outputIndex.4])
+validation.4.pca <- cbind(problem_id=validation.4$problem_id, validation.4.pca)
+# PCA All
+training.pca <- predict(pcaPreProcess, training[, -outputIndex])
+training.pca <- cbind(training.pca, classe=training$classe)
+testing.pca <- predict(pcaPreProcess, testing[, -outputIndex])
+testing.pca <- cbind(testing.pca, classe=testing$classe)
+validation.pca <- predict(pcaPreProcess, validation[, -outputIndex])
+validation.pca <- cbind(validation.pca, problem_id=validation$problem_id)
+```
+
+The four PCA-models are fitted.
+
+```{r train-pca-models, eval=FALSE}
+# Model using 4 best correlations after PCA
+modRF4.pca <- train(classe ~ ., method="rf", data=training.4.pca,
+                    trControl=control, ntree=100, verbose=T, keep.forest=T)
+modGBM4.pca <- train(classe ~ ., method="gbm", data=training.4.pca,
+                     verbose=TRUE)
+# Model with all after PCA
+modRFAll.pca <- train(classe ~ .,method="rf", data=training.pca,
+                      trControl=control, ntree=100, verbose=T, keep.forest=T)
+modGBMAll.pca <- train(classe ~ ., method="gbm", data=training.pca,
+                       verbose=TRUE)
+```
+
+Evaluating the four PCA-models.
+
+```{r eval-pca-models, cache=TRUE}
+# Evaluationg the pca models
+modRF4.pca <- readRDS("models/modRF4.pca.rds")
+modGBM4.pca <- readRDS("models/modGBM4.pca.rds")
+predRF4.pca <- predict(modRF4.pca, testing.4.pca)
+confRF4.pca <- confusionMatrix(predRF4.pca, testing.4.pca$classe)
+predGBM4.pca <- predict(modGBM4.pca, testing.4.pca)
+confGBM4.pca <- confusionMatrix(predGBM4.pca, testing.4.pca$classe)
+
+modRFAll.pca <- readRDS("models/modRFAll.pca.rds")
+modGBMAll.pca <- readRDS("models/modGBMAll.pca.rds")
+predRFAll.pca <- predict(modRFAll.pca, testing.pca)
+confRFAll.pca <- confusionMatrix(predRFAll.pca, testing.pca$classe)
+predGBMAll.pca <- predict(modGBMAll.pca, testing.pca)
+confGBMAll.pca <- confusionMatrix(predGBMAll.pca, testing.pca$classe)
+```
+
+
+## 5. Model evaluation
+
+Each of the model accuracies is stored in a dataframe to better compared them all.
+
+```{r accuracies, cache=TRUE}
+# Showing the different accuracies
+accuracies <- c(confRF4$overall[[1]], confRF4.pca$overall[[1]],
+                           confRFAll$overall[[1]], confRFAll.pca$overall[[1]],
+                           confGBM4$overall[[1]], confGBM4.pca$overall[[1]],
+                           confGBMAll$overall[[1]], confGBMAll.pca$overall[[1]])
+
+accuracies <- data.frame(accuracies)
+row.names(accuracies) <- c("RF4", "RF4.pca", "RFAll", "RFAll.pca",
+                           "GBM4", "GBM4.pca", "GBMAll", "GBMAll.pca")
+
+pander(accuracies)
+```
+
+
+The random forest model with all the covariates has the highest accuracy with a value of `r accuracies[c("RFAll"),]` and the lowest accuracy correspond to the GBM4 model after PCA, with a value of `r accuracies[c("GBM4.pca"),]`. Although it might seems tempting to use the RFAll model to validate our data, this high value might indicate overfitting and thus, will not be used. Instead the RFAll.pca model has a good accuracy (`r accuracies[c("RFAll.pca"),]`) and a much lower training time, for these reasons it will be used to submit the validation response.
+
+## 6. Conclussion
+
+The PCA models don't seem to perform better to the other models in terms of sheer accuracy, howerver, the big advantage is that they require much less of a training time due to the lower amount of data. A nicely chosen PCA model could obtain similar results to its non-PCA counterpart with the adequate settings, and this is the advantage of using such processing.
+
+Another finding after this analysis is that when using the highest correlated covariates to the predictor, the error tend to converge faster with the number of trees than when using all the predictor.
+
+```{r RF-error, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="Plot of the correlation matrix", cache=TRUE}
+par(mfrow=c(1,2))
+plot(modRF4$finalModel, main="All covariates model")
+plot(modRFAll$finalModel, main="Correlated covariates model")
+
+```
+
+
+
+## 7. Validation
+
+The final goal of the excercise was to predict the activity label for a set of 20 observations -named in this document the validation dataset-. The model used for the final submitted response is the modRFAll.pca. However, for comparison purposes, a dataframe containing all the respective prediction is going to be showed.
+
+```{r validation, cache=TRUE}
+# Validation RF
+valRF4 <- predict(modRF4, validation.4)
+valRF4.pca <- predict(modRF4.pca, validation.4.pca)
+valRFAll <- predict(modRFAll, validation)
+valRFAll.pca <- predict(modRFAll.pca, validation.pca)
+# Validation GBM
+valGBM4 <- predict(modGBM4, validation.4)
+valGBM4.pca <- predict(modGBM4.pca, validation.4.pca)
+valGBMAll <- predict(modGBMAll, validation)
+valGBMAll.pca <- predict(modGBMAll.pca, validation.pca)
+
+# Showing all the preiction from the different models
+predictions <- data.frame(RF4=valRF4, RF4.pca=valRF4.pca, RFAll=valRFAll,
+                          RFAll.pca=valRFAll.pca, GBM4=valGBM4, GBM4.pca=valGBM4.pca,
+                          GBMAll=valGBMAll, GBMAll.pca=valGBMAll.pca)
+
+pander(predictions)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

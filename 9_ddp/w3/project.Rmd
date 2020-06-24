@@ -1,0 +1,70 @@
+---
+title: "Week 3 Assignment"
+author: "Juan Osorio"
+date: "24/6/2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Overview
+
+This presentation contains a plot of the 500 most populous cities in the world according to the data from [Simple Maps](https://simplemaps.com/data/world-cities). The population is rescaled to millions and it is colored accordingly. The plot is made with the plotly package.
+
+The whole code (including the markdown file) is available on [my github](https://github.com/juanferov/ds_coursera/tree/master/9_ddp/w3).
+
+## Data Processing
+
+Code used for processing the data.
+
+``` {r libraries, results='hide', cache=TRUE}
+library(data.table)
+library(plotly)
+```
+
+```{r processing-code, echo=TRUE, results='hide', cache=TRUE}
+cols.keep <- c("city_ascii", "lat", "lng", "country", "population")
+dat <- fread("worldcities.csv", select=cols.keep)
+
+dat$population <- dat$population/1e6
+
+dat <- dat[order(-population)]
+
+dat <- dat[1:500,]
+
+dat$popup <- paste(dat$city_ascii, "<br> Country:", dat$country,
+                   "<br> Population:", as.character(round(dat$population, 3)),
+                   "Millions", sep=" ")
+```
+
+## 500 Most Populous Cities
+
+```{r map-plot, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, echo=FALSE, cache=TRUE}
+# specify map projection/options
+g <- list(
+    scope = "world",
+    showland = TRUE,
+    landcolor = toRGB("grey83"),
+    subunitcolor = toRGB("white"),
+    countrycolor = toRGB("white"),
+    showlakes = TRUE,
+    lakecolor = toRGB("white"),
+    showsubunits = TRUE,
+    showcountries = TRUE
+)
+
+# Creating the map
+my_map <- plot_geo(dat, lat=~lat, lon=~lng) %>%
+    add_markers(text=dat$popup, color=dat$population) %>%
+    colorbar(title = "Population in Millions") %>%
+    layout(title="Interactive Map", geo=g)
+
+my_map
+```
+
+## Thanks
+
+

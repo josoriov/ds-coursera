@@ -1,0 +1,64 @@
+---
+title: "Most Populous Cities APP"
+author: "Juan Osorio"
+date: "24/6/2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Overview
+
+This presentation contains a plot of the most populous cities in the world according to the data from [Simple Maps](https://simplemaps.com/data/world-cities). The population is rescaled to millions and it is labaled accordingly. The plot is made with the leaflet package.
+
+The whole code (including the markdown file) is available on [my github](https://github.com/juanferov/ds_coursera/tree/master/9_ddp/w4).
+
+## Data Processing
+
+From the full data, whose documentation could be found clicking on the link in the previous slide, we only use 5 columns which are of interest in order correctly put the point in a map.
+
+The map is then built using the Leaflet library.
+
+``` {r libraries, results='hide', cache=TRUE}
+library(data.table)
+library(pander)
+```
+
+```{r processing-code, echo=TRUE, cache=TRUE}
+cols.keep <- c("city_ascii", "lat", "lng", "country", "population")
+dat <- fread("myApp/worldcities.csv", select=cols.keep)
+dat$population <- dat$population/1e6
+dat <- dat[order(-population)]
+```
+## Data Example
+
+Five cities with the highest population (in millions)
+```{r data, cache=TRUE}
+pander(head(dat, 5))
+```
+
+
+## Usage Guide
+
+The visuals consists of a side panel that have some control options and a central panel in which the map is placed. In the side panel there are two options:
+
+- Numbers of cities to visualize: consists of a slider to select a number n between 1 and 2000. This number corresponds to the n-th most populous cities according to the data.
+- Country: secondary filter that allows to choose cities only from the selected countries.
+
+For example, if the number of cities is set 200 and the country selected is India, it will only select the cities in Indie that are within the 200 most populous cities in the world. 
+
+For every modification made to these filter, the *Refresh* button need to be pressed in order for the changes to be applied.
+
+## Explore the APP
+
+The APP is hosted in shinyapps.io
+
+Feel free to use and explore its functionalities.
+
+[Cities](https://juanferov.shinyapps.io/cities/)
+
+
+

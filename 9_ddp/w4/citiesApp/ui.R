@@ -20,7 +20,7 @@ shinyUI(fluidPage(
     sidebarLayout(
         sidebarPanel(
             sliderInput("cities.select", "Number of cities to visualize:", 1, 2000,
-                        value=100),
+                        value=1000),
             selectInput("country", "Country:", c("All"), multiple=TRUE),
             submitButton("Refresh")
         ),

@@ -29,7 +29,7 @@ library(pander)
 
 ```{r processing-code, echo=TRUE, cache=TRUE}
 cols.keep <- c("city_ascii", "lat", "lng", "country", "population")
-dat <- fread("myApp/worldcities.csv", select=cols.keep)
+dat <- fread("citiesApp/worldcities.csv", select=cols.keep)
 dat$population <- dat$population/1e6
 dat <- dat[order(-population)]
 ```

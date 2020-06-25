@@ -48,7 +48,7 @@ The visuals consists of a side panel that have some control options and a centra
 - Numbers of cities to visualize: consists of a slider to select a number n between 1 and 2000. This number corresponds to the n-th most populous cities according to the data.
 - Country: secondary filter that allows to choose cities only from the selected countries.
 
-For example, if the number of cities is set 200 and the country selected is India, it will only select the cities in Indie that are within the 200 most populous cities in the world. 
+For example, if the number of cities is set 200 and the country selected is India, it will only select the cities in India that are within the 200 most populous cities in the world. 
 
 For every modification made to these filter, the *Refresh* button need to be pressed in order for the changes to be applied.
 

@@ -1,7 +1,7 @@
 ---
 title: "Week 3 Assignment"
 author: "Juan Osorio"
-date: "24/6/2020"
+date: "25/6/2020"
 output: ioslides_presentation
 ---
 
@@ -14,17 +14,16 @@ knitr::opts_chunk$set(echo = FALSE)
 
 This presentation contains a plot of the 500 most populous cities in the world according to the data from [Simple Maps](https://simplemaps.com/data/world-cities). The population is rescaled to millions and it is colored accordingly. The plot is made with the plotly package.
 
-The whole code (including the markdown file) is available on [my github](https://github.com/juanferov/ds_coursera/tree/master/9_ddp/w3).
+The whole code (including the markdown file) is available on [my github](https://github.com/juanferov/ds_coursera/tree/master/09_ddp/w3).
 
 ## Data Processing
 
 Code used for processing the data.
 
-``` {r libraries, results='hide', cache=TRUE}
+``` {r libraries, echo=FALSE, results='hide', cache=TRUE}
 library(data.table)
 library(plotly)
 ```
-
 ```{r processing-code, echo=TRUE, results='hide', cache=TRUE}
 cols.keep <- c("city_ascii", "lat", "lng", "country", "population")
 dat <- fread("worldcities.csv", select=cols.keep)

@@ -4,14 +4,8 @@
 .Ruserdata
 *.Rproj
 
-2_rprogramming/w2/specdata/
-
-2_rprogramming/w1/hw1_data.csv
-
-2_rprogramming/w4/outcome-of-care-measures.csv
-
 *.pdf
 
-8_practical_ml/project/models/
-
 08_practical_ml/project/models/
+
+10_capstone/data

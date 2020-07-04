@@ -6,6 +6,7 @@ library(stringr)
 library(gdata)
 library(slam)
 library(NLP)
+library(dplyr)
 
 # Reading the files
 path <- "../Data/final/en_US/"
@@ -21,9 +22,9 @@ twitter.n <- determine_nlines(paste(path, twitter, sep=""))
 
 
 # Sampling a fixed number of lines
-blogs.lines <- sample_lines(paste(path, blogs, sep=""), 1500)
-news.lines <- sample_lines(paste(path, news, sep=""), 1500)
-twitter.lines <- sample_lines(paste(path, twitter, sep=""), 4500)
+blogs.lines <- sample_lines(paste(path, blogs, sep=""), 4500)
+news.lines <- sample_lines(paste(path, news, sep=""), 4500)
+twitter.lines <- sample_lines(paste(path, twitter, sep=""), 13500)
 
 
 # Removing digits, punctuation and control characters
@@ -44,7 +45,7 @@ countLinesWords = function (data, nlines) {
     words = sum (sapply(gregexpr("\\W+", data), length) + 1)
     lines = length(data)
     avgWords = round(words/lines, 1)
-    estWords = words*nlines/lines
+    estWords = round(words*nlines/lines, 0)
     summary = list("words"=words, "lines"=lines, "totalLines"=nlines,
                    "avgWords"=avgWords, "estWords"= estWords)
     return (summary)
@@ -57,11 +58,19 @@ twitter.stats <- countLinesWords(twitter.lines, twitter.n)
 
 # Printing important stats
 all.stats <- as.data.frame(rbind(blogs.stats, news.stats, twitter.stats))
+saveRDS(all.stats, file="all.stats.Rda")
 
-# Merging all data to one single object
-all.lines <- c(blogs.lines, news.lines, twitter.lines)
-rm(blogs.lines, news.lines, twitter.lines)
+## Merging all data to one single object
+# all.lines <- c(blogs.lines, news.lines, twitter.lines)
+
+# Removing unnecesary elements from workspace
 rm(blogs.n, news.n, twitter.n)
 rm(blogs.stats, news.stats, twitter.stats)
 
+
+# Creating the tokens
+tokenizer(twitter.lines, "twitter")
+tokenizer(blogs.lines, "blogs")
+tokenizer(news.lines, "news")
+rm(blogs.lines, news.lines, twitter.lines)
 

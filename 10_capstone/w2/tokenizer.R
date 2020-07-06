@@ -7,8 +7,10 @@ library(gdata)
 library(slam)
 library(NLP)
 library(dplyr)
+library(ggplot2)
+library(Rmisc)
 
-# Make the tokenizer a big function an apply the function on each data not all.lines
+# Tokenize from unigrams to fourgrams and save the frequency files
 tokenizer <- function(linesVector, filename="corpus"){
     #Functions for the creation of NGrams
     BigramTokenizer <- function(x) unlist(lapply(ngrams(words(x), 2), paste,
@@ -52,4 +54,23 @@ tokenizer <- function(linesVector, filename="corpus"){
     return(paste("Files for",filename,"successfully created in folder", sep=" "))
     
 }
+
+
+# Convert to a single function that return all the ngrams models in a single dataframe
+freqReader <- function(ngram=1, max=1000){
+    comb <- data.frame(ngram=character(), freq=numeric(),
+                       token=character(), cumsum=numeric())
+    for(i in c("twitter", "news", "blogs")){
+        n <- readRDS(paste("./data/",i,".freq",ngram,".Rda", sep=""))
+        n <- as.data.frame(n)
+        n <- n %>% tibble::rownames_to_column("ngram") %>%
+            mutate(origin=i)
+        colnames(n)[1:2] <- c("ngram", "freq")
+        n <- n %>% mutate(cumsum=cumsum(freq)/sum(freq))
+        n <- n[1:max,]
+        comb <- rbind(comb, n)
+    }
     
+    comb <- comb %>% group_by(origin) %>% mutate(id = row_number())
+    return(comb)
+}

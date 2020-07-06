@@ -1,19 +1,23 @@
-# Convert to a single function that return all the ngrams models in a single dataframe
+n1 <- freqReader(1, 500)
+n2 <- freqReader(2, 1000)
+n3 <- freqReader(3, 3000)
+n4 <- freqReader(4, 800)
 
-n1 <- readRDS("./data/twitter.freq1.Rda")
-n1 <- as.data.frame(n1)
-n1 <- n1 %>% tibble::rownames_to_column("ngram") %>% mutate(token="1")
-colnames(n1)[1:2] <- c("ngram", "freq")
-n1 <- n1 %>% mutate(cumsum=cumsum(freq)/sum(freq))
+# Plots to visualize the data
+p1 <- ggplot(data=n1, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Precent of total of unigrams") + ggtitle("Unigrams")
 
-n2 <- readRDS("./data/twitter.freq2.Rda")
-n2 <- as.data.frame(n2)
-n2 <- n2 %>% tibble::rownames_to_column("ngram") %>% mutate(token="2")
-colnames(n2)[1:2] <- c("ngram", "freq")
-n2 <- n2 %>% mutate(cumsum=cumsum(freq)/sum(freq))
+p2 <- ggplot(data=n2, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Precent of total of unigrams") + ggtitle("Bigrams")
 
-comb <- rbind(n1, n2)
+p3 <- ggplot(data=n3, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Precent of total of unigrams") + ggtitle("Trigrams")
 
+p4 <- ggplot(data=n4, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Precent of total of unigrams") + ggtitle("Fourgrams")
 
-
-
+# multiplot(p1, p2, p3, p4, cols=2)

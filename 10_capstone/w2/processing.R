@@ -1,13 +1,3 @@
-library(LaF)
-library(tm)
-library(RWeka)
-library(data.table)
-library(stringr)
-library(gdata)
-library(slam)
-library(NLP)
-library(dplyr)
-
 # Reading the files
 path <- "../Data/final/en_US/"
 

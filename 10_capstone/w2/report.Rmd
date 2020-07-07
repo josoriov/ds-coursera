@@ -1,0 +1,207 @@
+---
+title: HC Corpora Exploratory Data Analysis
+author: Juan Osorio
+output: html_document
+---
+
+### Synopsis
+
+This document is the result of a exploratory analysis over the HC Corpora english data. Said data will be later used to create a predictive text model. The main objective is to understand the corpus and get some basic statistical information and features.
+
+The HC Corpora data consists of four corpora each of a different language (english, german, finish and russian). For every language there is a twitter, news and blogs file indicating the source from which the text comes from. For this task and the predictive model only the english corpora will be used.
+
+
+### Data Analysis
+
+The corpus consists of the next three files:
+
+```{r libraries, echo=FALSE, cache=TRUE, results='hide'}
+library(LaF)
+library(data.table)
+library(stringr)
+library(dplyr)
+library(ggplot2)
+library(Rmisc)
+library(kableExtra)
+library(wordcloud)
+```
+
+
+```{r aux-functions, echo=FALSE, cache=TRUE}
+# Setting seed fro reproducibility
+set.seed(18375)
+
+# Reading the files
+path <- "../Data/final/en_US/"
+
+blogs <- "en_US.blogs.txt"
+news <- "en_US.news.txt"
+twitter <- "en_US.twitter.txt"
+
+# Sample a fixed number of lines and removing special chars
+sampleClean <- function (filepath, lines){
+    # Sampling lines from filepath
+    data.lines <- sample_lines(filepath, lines)
+    # Removing digits, punctuation and control characters
+    data.lines <- gsub("[[:digit:]]", "", data.lines)
+    data.lines <- gsub("[[:punct:]]", "", data.lines)
+    data.lines <- gsub("[[:cntrl:]]", "", data.lines)
+    
+    return(data.lines)
+}
+
+# Function to count words and lines given filepath and lines to be extracted
+fileStats <- function (filepath, lines) {
+    # Getting the line data
+    data.lines <-  sampleClean(filepath, lines)
+    # Determine the number of lines in file
+    nlines <- determine_nlines(filepath)
+    # Getting the file size
+    size <- file.info(filepath)$size
+    
+    words = sum (sapply(gregexpr("\\W+", data.lines), length) + 1)
+    lines = length(data.lines)
+    avgWords = round(words/lines, 1)
+    estWords = round(words*nlines/lines, 0)
+    summary = list("size"=size, "words"=words, "importedLines"=lines, "totalLines"=nlines,
+                   "avgWords"=avgWords, "estWords"= estWords)
+    return (summary)
+}
+
+# Convert to a single function that return all the ngrams models in a single dataframe
+freqReader <- function(n_gram=1, max=1000){
+    comb <- data.frame(ngram=character(), freq=numeric(),
+                       origin=character(), cumsum=numeric())
+    for(i in c("twitter", "news", "blogs")){
+        dat <- readRDS(paste("./data/",i,".freq",n_gram,".Rda", sep=""))
+        dat <- as.data.frame(dat)
+        dat <- dat %>% tibble::rownames_to_column("ngram") %>%
+            mutate(origin=i)
+        colnames(dat)[1:2] <- c("ngram", "freq")
+        dat <- dat %>% mutate(cumsum=cumsum(freq)/sum(freq))
+        if(max!=-1){
+            dat <- dat[1:max,]
+        }
+        comb <- rbind(comb, dat)
+    }
+    comb <- comb %>% group_by(origin) %>% dplyr::mutate(id = row_number())
+    return(comb)
+}
+```
+
+```{r corpus-files, cache=TRUE, echo=FALSE}
+blogs <- "en_US.blogs.txt"
+news <- "en_US.news.txt"
+twitter <- "en_US.twitter.txt"
+
+print(c(blogs, news, twitter))
+```
+
+Given that this is only an exploratory data analysis, only an small portion of the files total lines are going to be used. To ensure that this is still representative, the lines to be used are to be sampled randomly. For the blogs and news files 22500 files will be extracted, while for the twitter file 67500 lines are chosen. This is because it is assumed that a twitter entry is much shorter than a news or a blog one, and we want to have similar amount of words for the stats.
+
+The basic stats for every file are obtained.
+
+```{r stats-table, cache=TRUE, echo=FALSE}
+all.stats <- readRDS("./data/all.stats.Rda")
+kable(all.stats) %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "responsive"),
+                  full_width = T, position = "center")
+```
+
+
+After that, the tokenization is applied to the three samples in order to create the respective n-gram, with n taking an integer value between 1 and 4. The most frequent values are plotted vs the normalized cumulative frequency.
+
+```{r healt-plot, fig.align='center', fig.width=6, fig.height=4, cache=TRUE, fig.cap="N-gram nomalized cumulative frequency", echo=FALSE}
+n1 <- freqReader(1, 500)
+n2 <- freqReader(2, 1000)
+n3 <- freqReader(3, 3000)
+n4 <- freqReader(4, 800)
+
+# Plots to visualize the data
+p1 <- ggplot(data=n1, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Cumulative frequency") + ggtitle("Unigrams")
+
+p2 <- ggplot(data=n2, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Cumulative frequency") + ggtitle("Bigrams")
+
+p3 <- ggplot(data=n3, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Cumulative frequency") + ggtitle("Trigrams")
+
+p4 <- ggplot(data=n4, aes(x=id, y=cumsum, color=origin)) + facet_grid(origin~.) +
+    geom_point(aes(alpha=0.5), show.legend=F) + xlab("N-most frequent unigrams") +
+    ylab("Cumulative frequency") + ggtitle("Fourgrams")
+
+multiplot(p1, p2, p3, p4, cols=2)
+```
+
+By the plot, one can see how the first most frequent n-grams are the ones that contribute the most to the cumulative frequency. The steeper the curve, the higher the contributions of the first unigrams are; the more linear the plot is, the low its contribution is.
+
+The unigram plot is a very "steepy" one and this means, that a small number of words are necessary to cover the majority of words in the corpus. To solidify this affirmation, we will calculate the percentage of unigrams (words) needed to cover 85% of the total file words.
+
+```{r unigrams-precent, cache=TRUE, echo=FALSE}
+# Getting the % of unigrams needed for 0.85 of text words
+n_test <- freqReader(1,-1)
+
+twitter.lines <- n_test[n_test$origin == "twitter",]
+news.lines <- n_test[n_test$origin == "news",]
+blogs.lines <- n_test[n_test$origin == "blogs",]
+
+twitter.unigrams <- nrow(twitter.lines)
+news.unigrams <- nrow(news.lines)
+blogs.unigrams <- nrow(blogs.lines)
+
+twitter.lines <- twitter.lines[twitter.lines$cumsum > 0.85,]
+news.lines <- news.lines[news.lines$cumsum > 0.85,]
+blogs.lines <- blogs.lines[blogs.lines$cumsum > 0.85,]
+
+twitter.90 <- min(twitter.lines$id)
+news.90 <- min(news.lines$id)
+blogs.90 <- min(blogs.lines$id)
+
+percent <- as.data.frame(list("twitter"=round(100*twitter.90/twitter.unigrams, 2),
+                              "blogs"=round(100*blogs.90/blogs.unigrams, 2),
+                              "news"=round(100*news.90/news.unigrams, 2)))
+
+kable(percent) %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "responsive"),
+                  full_width = F, position = "center")
+
+```
+
+We see that twitter has the lowest percentage (`r percent$twitter`%) while news has the higher (`r percent$news`%). THe proposed explanation to that is that news articles have a more formal language than Twitter post which are mostly informal and personal.
+
+After that, a table that includes the 15 most frequent bigrams for every file is made. 
+
+```{r wordcloud-plot, cache=TRUE, echo=FALSE}
+# 30 most commons bigrams for each category
+n_test <- freqReader(2,15)
+
+n_test <- n_test %>%
+    mutate(ngram_freq = paste(ngram, as.character(freq), sep=": ")) %>%
+    select (-c(id, origin,cumsum,freq, ngram))
+
+twitter <- n_test[n_test$origin == "twitter", "ngram_freq"]
+blogs <- n_test[n_test$origin == "blogs", "ngram_freq"]
+news <- n_test[n_test$origin == "news", "ngram_freq"]
+
+n_test <- cbind(twitter, blogs, news)
+names(n_test) <- c("twitter", "blogs", "news")
+
+kable(n_test) %>%
+    kable_styling(bootstrap_options = c("striped", "hover", "responsive"),
+                  full_width = T, position = "center")
+```
+
+As can be seen, in the Twitter column there's a lot more personal expression while in news and blogs almost all the highest bigrams are logical connectors and prepositions.
+
+
+### Conclusions
+
+There is notable differences between each of the data files and how the words relates to each other (as evidenced when looking at the n-grams models). An ideal predictor would take into account the context in which the words is used to make the correct prediction. Given that, a different model should be fitted to each data file and then the algorithm must learn to differentiate when is the correct use case for any of them. This approach will also make the process faster, because the use of smaller separate files could increase the speed of the prediction process.
+
+### Disclaimer
+
+Since this is a executive type of report, I tried to include the least possible amount of code in the HTML. If you wanna see the source code it could be found on  [github](https://github.com/juanferov/ds_coursera/tree/master/10_capstone/w2). In case there is doubt on how this report was made, please reffer to the source or contact directly the writer.

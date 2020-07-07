@@ -57,20 +57,21 @@ tokenizer <- function(linesVector, filename="corpus"){
 
 
 # Convert to a single function that return all the ngrams models in a single dataframe
-freqReader <- function(ngram=1, max=1000){
+freqReader <- function(n_gram=1, max=1000){
     comb <- data.frame(ngram=character(), freq=numeric(),
-                       token=character(), cumsum=numeric())
+                       origin=character(), cumsum=numeric())
     for(i in c("twitter", "news", "blogs")){
-        n <- readRDS(paste("./data/",i,".freq",ngram,".Rda", sep=""))
-        n <- as.data.frame(n)
-        n <- n %>% tibble::rownames_to_column("ngram") %>%
+        dat <- readRDS(paste("./data/",i,".freq",n_gram,".Rda", sep=""))
+        dat <- as.data.frame(dat)
+        dat <- dat %>% tibble::rownames_to_column("ngram") %>%
             mutate(origin=i)
-        colnames(n)[1:2] <- c("ngram", "freq")
-        n <- n %>% mutate(cumsum=cumsum(freq)/sum(freq))
-        n <- n[1:max,]
-        comb <- rbind(comb, n)
+        colnames(dat)[1:2] <- c("ngram", "freq")
+        dat <- dat %>% mutate(cumsum=cumsum(freq)/sum(freq))
+        if(max!=-1){
+            dat <- dat[1:max,]
+        }
+        comb <- rbind(comb, dat)
     }
-    
-    comb <- comb %>% group_by(origin) %>% mutate(id = row_number())
+    comb <- comb %>% group_by(origin) %>% dplyr::mutate(id = row_number())
     return(comb)
 }

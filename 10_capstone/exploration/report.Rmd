@@ -97,7 +97,7 @@ twitter <- "en_US.twitter.txt"
 print(c(blogs, news, twitter))
 ```
 
-Given that this is only an exploratory data analysis, only an small portion of the files total lines are going to be used. To ensure that this is still representative, the lines to be used are to be sampled randomly. For the blogs and news files 22500 files will be extracted, while for the twitter file 67500 lines are chosen. This is because it is assumed that a twitter entry is much shorter than a news or a blog one, and we want to have similar amount of words for the stats.
+Given that this is only an exploratory data analysis, only an small portion of the files total lines are going to be used. To ensure that this is still representative, the lines to be used are sampled randomly. For the blogs and news files 22500 lines will be extracted, while for the twitter file 67500 lines are chosen. This is because it is assumed that a twitter entry is much shorter than a news or a blog one, and we want to have similar amount of words for the stats.
 
 The basic stats for every file are obtained.
 
@@ -111,7 +111,7 @@ kable(all.stats) %>%
 
 After that, the tokenization is applied to the three samples in order to create the respective n-gram, with n taking an integer value between 1 and 4. The most frequent values are plotted vs the normalized cumulative frequency.
 
-```{r healt-plot, fig.align='center', fig.width=6, fig.height=4, cache=TRUE, fig.cap="N-gram nomalized cumulative frequency", echo=FALSE}
+```{r healt-plot, fig.align='center', fig.width=8, fig.height=6, cache=TRUE, fig.cap="N-gram nomalized cumulative frequency", echo=FALSE}
 n1 <- freqReader(1, 500)
 n2 <- freqReader(2, 1000)
 n3 <- freqReader(3, 3000)
@@ -171,11 +171,11 @@ kable(percent) %>%
 
 ```
 
-We see that twitter has the lowest percentage (`r percent$twitter`%) while news has the higher (`r percent$news`%). THe proposed explanation to that is that news articles have a more formal language than Twitter post which are mostly informal and personal.
+We see that twitter has the lowest percentage (`r percent$twitter`%) while news has the higher (`r percent$news`%). The proposed explanation to that is that news articles have a more formal language than Twitter post which are mostly informal and personal. This, in case, make it so that there is a wider variety of words in the news file.
 
-After that, a table that includes the 15 most frequent bigrams for every file is made. 
+After that, a table that includes the 15 most frequent bigrams and the number each bigram appears in the sampled lines. For every file a new column is created. 
 
-```{r wordcloud-plot, cache=TRUE, echo=FALSE}
+```{r bigrams-table, cache=TRUE, echo=FALSE}
 # 30 most commons bigrams for each category
 n_test <- freqReader(2,15)
 
@@ -204,4 +204,4 @@ There is notable differences between each of the data files and how the words re
 
 ### Disclaimer
 
-Since this is a executive type of report, I tried to include the least possible amount of code in the HTML. If you wanna see the source code it could be found on  [github](https://github.com/juanferov/ds_coursera/tree/master/10_capstone/w2). In case there is doubt on how this report was made, please reffer to the source or contact directly the writer.
+Since this is a executive type of report, I tried to include the least possible amount of code in the HTML. If you wanna see the source code it could be found on  [github](http://github.com/juanferov/ds_coursera/tree/master/10_capstone/w2). In case there is doubt on how this report was made, please reffer to the source or contact directly the writer.

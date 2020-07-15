@@ -1,6 +1,6 @@
 set.seed(12873)
 twitter.lines <- sampleClean(paste(path, twitter, sep=""), 25000)
-blogs.lines <- sampleClean(paste(path, blogs, sep=""), 250000)
+blogs.lines <- sampleClean(paste(path, blogs, sep=""), 100000)
 news.lines <- sampleClean(paste(path, news, sep=""), 25000)
 rm(blogs, news, twitter, path)
 all.lines <- c(twitter.lines, blogs.lines, news.lines)

@@ -1,0 +1,58 @@
+---
+title: "Predictive Text APP"
+author: "Juan Osorio"
+date: "July 15, 2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+
+## Predictive Text APP
+
+This is my predictive text app. It trains the model with the data from the HC Corpora english corpus. The model was chosen so as to provide a good balance between accuracy and speed.
+
+The three main parts are:
+
+- Model
+
+- Algorithm
+
+- Shiny Web App
+
+This project will continue to be developed by the author. So be patient as the efficiency will be improving when next iterations of the project are launched.
+
+## Model
+
+The model consists of all n-grams from unigrams to sixgrams. Those were created from random lines sampled from each of the three files.
+
+Three houndred thousand (300K) lines were sampled 83% of them from the blogs file, since it was found in the exploratoy analysis that news language is to formal and twitter language is the opposite.
+
+These token models were stored and then preocessed in the algorithm to obtain at maximum 5 predicted next words, for speed reasons. Those words obtained were ordered according to the probability given by the algorithm.
+
+## Algorithm
+
+Starting from the last six words the sentences are processed by applying the Stupid Back-Off Algorithm recursively.
+
+$P ( w_i|w_{i-1}^{i-k+1} ) =  
+\left\{
+  \begin{array}{ll}
+    \frac{f(w_{i-k+1}^i )}{f(w_{i-k+1}^{i-1} )} \qquad \, \textrm{if} \, f(w_{i-k+1}^i ) >0\\
+    \alpha P(w_{i-k+1}^i ) \quad \textrm{otherwise}
+  \end{array}
+\right.$
+
+Although might seem that P indicates probability this is indeeed just an score. $\alpha$ is a fixed value calculated beforehand and the $f()$ values are the relative frequencies.
+
+## Shiny App
+
+Finally a Shiny App is made to test the algorithm and provide an interactive environment for the end user. This app contains a text input and a selector.
+
+Once you finish typing a word on the text input, the selector values will update to those calculated by the algorithm. If the user select one of the suggested words, the text input will update and so, new words will be suggested to continue the writing.
+
+Try it out yourself at: [Text Prediction App](https://juanferov.shinyapps.io/predictiveText/)
+
+
+

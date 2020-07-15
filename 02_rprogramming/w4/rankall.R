@@ -1,6 +1,5 @@
 dat <- read.csv("outcome-of-care-measures.csv", colClasses = "character")
 
-
 rankall <- function(outcome, num="best") {
   a <- dat[c(2,7,11,17,23)] # Getting only the needed columns
   

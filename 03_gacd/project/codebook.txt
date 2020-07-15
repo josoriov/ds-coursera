@@ -58,7 +58,7 @@ timeBodyAccJerkMean
 timeBodyGyroMean
 timeBodyGyroJerkMean
 
-This is the complete list of variables:
+The complete list of variables is:
 
 1 timeBodyAcc_mean_X
 2 timeBodyAcc_mean_Y

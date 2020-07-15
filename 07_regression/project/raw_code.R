@@ -5,6 +5,7 @@ library(GGally)
 library(MASS)
 
 # Processing
+
 # Extracting the data
 data(mtcars)
 # Getting all the correlations

@@ -27,7 +27,6 @@ predGBMAll <- predict(modGBMAll, testing)
 confGBMAll <- confusionMatrix(predGBMAll, testing$classe)
 
 
-
 # Model using pca
 pcaPreProcess <- preProcess(training[, -outputIndex], method = "pca",
                             thresh = 0.80)

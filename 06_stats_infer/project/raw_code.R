@@ -31,7 +31,6 @@ mean_teo <- 1/lambda
 var_teo <- 1/(lambda^2)
 sd_teo <- 1/(lambda*sqrt(n))
 
-
 # Plotting the distribution with normal approximations
 p1 <- ggplot(exp_distributions_means, aes(x=means)) + xlab("Means") + ylab("Density") +
     geom_histogram(aes(y=..density..), fill="#69b3a2", color="#ACB8C3", alpha=0.6) +

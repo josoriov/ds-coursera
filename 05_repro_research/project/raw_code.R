@@ -9,6 +9,7 @@ cols.keep <- c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP",
 dat <- fread("data/storm_data.csv", select=cols.keep)
 names(dat) <- c("evtype", "fatalities", "injuries", "propdmg", "propdmgexp",
                 "cropdmg", "cropdmgexp")
+
 # Function to replace the exponents
 replace_exp <- function(x) {
     if (x=="K" | x=="k") {
